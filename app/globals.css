@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #000000;
+  --foreground: #ffffff;
 }
 
 @theme inline {
@@ -12,15 +12,208 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* Prevent browser from restoring scroll position on reload */
+  overflow-anchor: none;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #000; }
+::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+
+/* ─── Intro Animation ─────────────────────────────────────── */
+
+/* Full-screen overlay */
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Exit: scale up + fade out */
+.intro-exit {
+  animation: introExit 0.9s cubic-bezier(0.76, 0, 0.24, 1) forwards;
+  pointer-events: none; /* block clicks while fading — valid here, not in keyframes */
+}
+
+@keyframes introExit {
+  0%   { opacity: 1; transform: scale(1); }
+  40%  { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 0; transform: scale(1.14); }
+}
+
+/* Scanline texture overlay */
+.intro-scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.012) 2px,
+    rgba(255,255,255,0.012) 4px
+  );
+  pointer-events: none;
+}
+
+/* Center wrapper */
+.intro-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  text-align: center;
+}
+
+/* ── BAZ row ── */
+.intro-baz-row {
+  display: flex;
+  align-items: baseline;
+  line-height: 1;
+  /* font size via clamp so it works on all screens */
+  font-size: clamp(7rem, 20vw, 18rem);
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+/* Each letter clips upward into view */
+.intro-letter-wrap {
+  display: inline-block;
+  overflow: hidden;
+  padding-bottom: 0.04em; /* prevent clip cutting descenders */
+}
+
+.intro-letter-inner {
+  display: inline-block;
+  animation: letterReveal 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes letterReveal {
+  from {
+    transform: translateY(100%) skewY(6deg);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) skewY(0deg);
+    opacity: 1;
+  }
+}
+
+/* ── Yellow divider ── */
+.intro-line-wrap {
+  width: 100%;
+  max-width: min(52vw, 600px);
+  height: 3px;
+  background: rgba(255,255,255,0.05);
+  margin: 0.6rem 0 0.5rem;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.intro-line {
+  height: 100%;
+  background: linear-gradient(90deg, #facc15, #fde68a, #facc15);
+  width: 100%;
+  transform-origin: left;
+  transform: scaleX(0);
+  animation: lineGrow 0.6s 0.5s cubic-bezier(0.76, 0, 0.24, 1) forwards;
+  border-radius: 2px;
+}
+
+@keyframes lineGrow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* ── HOLDING row ── */
+.intro-holding-row {
+  display: flex;
+  align-items: baseline;
+  font-size: clamp(1.6rem, 4.5vw, 4.5rem);
+  letter-spacing: 0.55em;
+  color: rgba(255,255,255,0.85);
+  line-height: 1;
+  padding-right: 0.55em; /* compensate letter-spacing on last char */
+}
+
+.intro-holding-letter {
+  display: inline-block;
+  opacity: 0;
+  animation: holdingFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes holdingFade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* ── Tagline ── */
+.intro-tagline {
+  margin-top: 1.4rem;
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+  font-size: clamp(0.6rem, 1.2vw, 0.85rem);
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: rgba(250, 204, 21, 0.75);
+  opacity: 0;
+  animation: taglineFade 0.8s 1.1s ease forwards;
+}
+
+@keyframes taglineFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Corner accents ── */
+.intro-corner {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  opacity: 0;
+  animation: cornerFade 0.5s 0.8s ease forwards;
+}
+
+.intro-corner-tl {
+  top: 2rem; left: 2rem;
+  border-top: 1px solid rgba(250,204,21,0.4);
+  border-left: 1px solid rgba(250,204,21,0.4);
+}
+
+.intro-corner-br {
+  bottom: 2rem; right: 2rem;
+  border-bottom: 1px solid rgba(250,204,21,0.4);
+  border-right: 1px solid rgba(250,204,21,0.4);
+}
+
+@keyframes cornerFade {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ─── End Intro ───────────────────────────────────────────── */
