@@ -85,39 +85,55 @@ export default function Hero() {
     drawFrame(currentFrameRef.current)
   }
 
-  // ── Preload: fetch → createImageBitmap (GPU decode, off-main-thread) ──────
+  // ── Preload: skip on mobile, load all frames on desktop ──────────────────
   useEffect(() => {
-    let done = 0
+    const isMobile = window.innerWidth < 768
 
-    // Get/cache the context once with performance flags
     const canvas = canvasRef.current!
-    ctxRef.current = canvas.getContext('2d', {
-      alpha: false,           // opaque canvas → browser skips alpha compositing
-      desynchronized: true,   // reduce input→paint latency in Chrome
-    })
+    ctxRef.current = canvas.getContext('2d', { alpha: false, desynchronized: true })
 
     resizeCanvas()
     window.addEventListener('resize', resizeCanvas)
 
+    // Mobile: 296 PNGs are too heavy — signal 100 % immediately
+    if (isMobile) {
+      setLoadProgress(100)
+      setProgress(100)
+      setLoaded(true)
+      return () => window.removeEventListener('resize', resizeCanvas)
+    }
+
+    // Desktop: full frame load
+    let done = 0
+    let safetyTimer: ReturnType<typeof setTimeout>
     const bitmaps = bitmapsRef.current
+    const canBitmap = typeof createImageBitmap !== 'undefined'
+
+    function onFrameDone(i: number, bmp: ImageBitmap | HTMLImageElement) {
+      bitmaps[i] = bmp
+      done++
+      const pct = Math.round((done / TOTAL_FRAMES) * 100)
+      setLoadProgress(pct)
+      setProgress(pct)
+      if (i === 0) drawFrame(0)
+      if (done === TOTAL_FRAMES) { clearTimeout(safetyTimer); setLoaded(true) }
+    }
 
     for (let i = 0; i < TOTAL_FRAMES; i++) {
       const img = new Image()
       img.src = frameUrl(i)
       img.onload = () => {
-        createImageBitmap(img).then(bitmap => {
-          bitmaps[i] = bitmap
-          done++
-          const pct = Math.round((done / TOTAL_FRAMES) * 100)
-          setLoadProgress(pct)
-          setProgress(pct)
-          if (i === 0) drawFrame(0)
-          if (done === TOTAL_FRAMES) setLoaded(true)
-        })
+        if (canBitmap) createImageBitmap(img).then(b => onFrameDone(i, b)).catch(() => onFrameDone(i, img))
+        else onFrameDone(i, img)
       }
+      img.onerror = () => onFrameDone(i, img)
     }
 
-    return () => window.removeEventListener('resize', resizeCanvas)
+    safetyTimer = setTimeout(() => {
+      if (done < TOTAL_FRAMES) { setLoadProgress(100); setProgress(100); setLoaded(true) }
+    }, 12000)
+
+    return () => { window.removeEventListener('resize', resizeCanvas); clearTimeout(safetyTimer) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

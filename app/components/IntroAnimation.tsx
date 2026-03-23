@@ -1,59 +1,92 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useLoading } from '../context/LoadingContext'
 
 const LETTERS_BAZ     = ['B', 'A', 'Z']
 const LETTERS_HOLDING = ['H', 'O', 'L', 'D', 'I', 'N', 'G']
 
-// Minimum time the intro stays visible (ms)
-const MIN_DISPLAY = 2600
+const HOLD_MS = 3200   // total intro duration
+
+// Resets on every page reload; persists across client-side navigation
+let introPlayed = false
 
 export default function IntroAnimation({ fontClass }: { fontClass: string }) {
-  const { progress } = useLoading()
-  const [phase, setPhase]     = useState<'intro' | 'exit' | 'done'>('intro')
-  const startTime             = useRef(Date.now())
-  const exitScheduled         = useRef(false)
+  const [phase, setPhase] = useState<'intro' | 'exit' | 'done'>('intro')
+  const [pct, setPct]     = useState(0)
+  const scheduled         = useRef(false)
 
-  // Trigger exit when BOTH conditions are met:
-  // 1. progress has reached 100
-  // 2. at least MIN_DISPLAY ms have elapsed
+  // Count 0 → 100 over HOLD_MS − 400 ms so it hits 100 just before exit
   useEffect(() => {
-    if (progress < 100 || exitScheduled.current) return
-    exitScheduled.current = true
+    if (introPlayed) return
+    const duration = HOLD_MS - 500
+    const start    = Date.now()
+    let raf: number
+    const tick = () => {
+      const p = Math.min(100, Math.round(((Date.now() - start) / duration) * 100))
+      setPct(p)
+      if (p < 100) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [])
 
-    const elapsed   = Date.now() - startTime.current
-    const remaining = Math.max(0, MIN_DISPLAY - elapsed)
+  useEffect(() => {
+    // Skip on client-side navigation
+    if (introPlayed) {
+      document.body.style.overflow = ''
+      setPhase('done')
+      return
+    }
 
-    const exitTimer = setTimeout(() => setPhase('exit'), remaining)
-    const doneTimer = setTimeout(() => setPhase('done'),  remaining + 900)
+    document.body.style.overflow = 'hidden'
+    if (scheduled.current) return
+    scheduled.current = true
 
-    return () => { clearTimeout(exitTimer); clearTimeout(doneTimer) }
-  }, [progress])
+    const exitTimer = setTimeout(() => setPhase('exit'), HOLD_MS)
+    const doneTimer = setTimeout(() => {
+      introPlayed = true
+      document.body.style.overflow = ''
+      setPhase('done')
+    }, HOLD_MS + 1000)
+
+    return () => {
+      clearTimeout(exitTimer)
+      clearTimeout(doneTimer)
+      document.body.style.overflow = ''
+    }
+  }, [])
 
   if (phase === 'done') return null
 
   return (
-    <div
-      className={`intro-overlay ${phase === 'exit' ? 'intro-exit' : ''}`}
-      aria-hidden="true"
-    >
-      {/* Scanline texture */}
-      <div className="intro-scanlines" />
+    <div className={`intro-overlay ${phase === 'exit' ? 'intro-exit' : ''}`} aria-hidden="true">
 
-      {/* Center content */}
+      {/* Animated grain */}
+      <div className="intro-grain" />
+
+      {/* Gold sweep line */}
+      <div className="intro-sweep" />
+
+      {/* Main content */}
       <div className="intro-content">
+
+        {/* Stamp */}
+        <div className="intro-stamp">
+          <div className="intro-stamp-line" />
+          <span className="intro-stamp-text">Est. 2019 · Dubai, UAE</span>
+          <div className="intro-stamp-line" />
+        </div>
 
         {/* BAZ */}
         <div className={`intro-baz-row ${fontClass}`}>
           {LETTERS_BAZ.map((l, i) => (
-            <span key={l} className="intro-letter-wrap" style={{ animationDelay: `${0.1 + i * 0.12}s` }}>
+            <span key={l} className="intro-letter-wrap" style={{ animationDelay: `${0.12 + i * 0.1}s` }}>
               <span className="intro-letter-inner">{l}</span>
             </span>
           ))}
         </div>
 
-        {/* Yellow divider */}
+        {/* Divider */}
         <div className="intro-line-wrap">
           <div className="intro-line" />
         </div>
@@ -61,7 +94,7 @@ export default function IntroAnimation({ fontClass }: { fontClass: string }) {
         {/* HOLDING */}
         <div className={`intro-holding-row ${fontClass}`}>
           {LETTERS_HOLDING.map((l, i) => (
-            <span key={i} className="intro-holding-letter" style={{ animationDelay: `${0.55 + i * 0.06}s` }}>
+            <span key={i} className="intro-holding-letter" style={{ animationDelay: `${0.6 + i * 0.055}s` }}>
               {l}
             </span>
           ))}
@@ -70,63 +103,42 @@ export default function IntroAnimation({ fontClass }: { fontClass: string }) {
         {/* Tagline */}
         <p className="intro-tagline">Global Marketing Agency</p>
 
-        {/* ── Loading bar ── */}
-        <div style={{
-          marginTop: '2.8rem',
-          width: 'min(52vw, 600px)',
-          opacity: 0,
-          animation: 'taglineFade 0.6s 1.4s ease forwards',
-        }}>
-          {/* Track */}
-          <div style={{
-            width: '100%',
-            height: '1px',
-            background: 'rgba(255,255,255,0.08)',
-            position: 'relative',
-            overflow: 'hidden',
-          }}>
-            {/* Fill */}
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(90deg, #facc15, #fde68a)',
-              transformOrigin: 'left',
-              transform: `scaleX(${progress / 100})`,
-              transition: 'transform 0.35s cubic-bezier(0.16,1,0.3,1)',
-            }} />
+      </div>
+
+      {/* Loading section — bottom */}
+      <div className="intro-loader">
+
+        {/* Counter row */}
+        <div className="intro-loader-row">
+          {/* Large editorial percentage */}
+          <div className="intro-loader-counter">
+            {String(pct).padStart(3, '0')}<sup>%</sup>
           </div>
 
-          {/* Percentage */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            marginTop: '0.55rem',
-          }}>
-            <span style={{
-              fontFamily: 'var(--font-geist-sans)',
-              fontSize: '0.55rem',
-              letterSpacing: '0.3em',
-              textTransform: 'uppercase',
-              color: 'rgba(255,255,255,0.28)',
-            }}>
-              Loading
-            </span>
-            <span style={{
-              fontFamily: 'var(--font-geist-sans)',
-              fontSize: '0.55rem',
-              letterSpacing: '0.12em',
-              color: progress === 100 ? 'rgba(250,204,21,0.8)' : 'rgba(255,255,255,0.35)',
-              transition: 'color 0.4s ease',
-            }}>
-              {progress}%
-            </span>
+          {/* Right side: label + animated dots */}
+          <div className="intro-loader-right">
+            <span className="intro-loader-label">Initialising experience</span>
+            <div className="intro-loader-dots">
+              <div className="intro-loader-dot" />
+              <div className="intro-loader-dot" />
+              <div className="intro-loader-dot" />
+            </div>
           </div>
+        </div>
+
+        {/* Multi-layer bars */}
+        <div className="intro-loader-bars">
+          <div className="intro-loader-track"><div className="intro-loader-fill" /></div>
+          <div className="intro-loader-track"><div className="intro-loader-fill" /></div>
+          <div className="intro-loader-track"><div className="intro-loader-fill" /></div>
         </div>
 
       </div>
 
-      {/* Corner accents */}
+      {/* All 4 corners */}
       <div className="intro-corner intro-corner-tl" />
+      <div className="intro-corner intro-corner-tr" />
+      <div className="intro-corner intro-corner-bl" />
       <div className="intro-corner intro-corner-br" />
     </div>
   )
