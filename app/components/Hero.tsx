@@ -28,8 +28,8 @@ export default function Hero() {
   // Cache cover geometry so we don't recompute every draw call
   const coverCacheRef   = useRef<{ w: number; h: number; bw: number; bh: number; sx: number; sy: number; sw: number; sh: number } | null>(null)
 
-  const [loaded, setLoaded]             = useState(false)
-  const [loadProgress, setLoadProgress] = useState(0)
+  const [loaded, setLoaded]                   = useState(false)
+  const [firstFrameReady, setFirstFrameReady] = useState(false)
 
   // ── Draw using cached ImageBitmap ─────────────────────────────────────────
   const drawFrame = (floatIndex: number) => {
@@ -95,11 +95,12 @@ export default function Hero() {
     resizeCanvas()
     window.addEventListener('resize', resizeCanvas)
 
-    // Mobile: 296 PNGs are too heavy — signal 100 % immediately
+    // Mobile: skip frames — mark everything ready instantly
     if (isMobile) {
-      setLoadProgress(100)
+      setProgress(100)
       setProgress(100)
       setLoaded(true)
+      setFirstFrameReady(true)
       return () => window.removeEventListener('resize', resizeCanvas)
     }
 
@@ -113,9 +114,9 @@ export default function Hero() {
       bitmaps[i] = bmp
       done++
       const pct = Math.round((done / TOTAL_FRAMES) * 100)
-      setLoadProgress(pct)
       setProgress(pct)
-      if (i === 0) drawFrame(0)
+      setProgress(pct)
+      if (i === 0) { drawFrame(0); setFirstFrameReady(true) }
       if (done === TOTAL_FRAMES) { clearTimeout(safetyTimer); setLoaded(true) }
     }
 
@@ -135,7 +136,7 @@ export default function Hero() {
     }
 
     safetyTimer = setTimeout(() => {
-      if (done < TOTAL_FRAMES) { setLoadProgress(100); setProgress(100); setLoaded(true) }
+      if (done < TOTAL_FRAMES) { setProgress(100); setProgress(100); setLoaded(true) }
     }, 12000)
 
     return () => { window.removeEventListener('resize', resizeCanvas); clearTimeout(safetyTimer) }
@@ -189,41 +190,46 @@ export default function Hero() {
           background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)',
         }} />
 
-        {/* Loading */}
-        {!loaded && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-10">
-            <span className="text-white/40 text-[10px] tracking-[0.4em] uppercase mb-5"
-              style={{ fontFamily: 'var(--font-geist-sans)' }}>
-              Loading
-            </span>
-            <div className="w-40 h-px bg-white/10 overflow-hidden">
-              <div className="h-full bg-white/60 transition-all duration-200"
-                style={{ width: `${loadProgress}%` }} />
-            </div>
-          </div>
-        )}
 
-        {/* ── Layout ── */}
-        <div className="absolute inset-0 flex flex-col justify-between px-7 py-6">
-
+        {/* ── Layout — fades in only after first frame is painted ── */}
+        <div className="absolute inset-0 flex flex-col justify-between px-7 py-6"
+          style={{
+            opacity:    firstFrameReady ? 1 : 0,
+            transition: 'opacity 0.6s ease',
+          }}
+        >
           <div className="h-16" />
 
           {/* Middle nav */}
           <div className="flex items-start justify-between px-2 md:px-8">
             <nav className="flex flex-col gap-4">
-              {tr.hero.navLeft.map(item => (
+              {tr.hero.navLeft.map((item, i) => (
                 <a key={item} href="#services"
                   className="text-white/55 hover:text-white transition-colors duration-300"
-                  style={{ fontFamily: fonts.body, fontWeight: 400, letterSpacing: isRtl ? '0.01em' : '0.03em', fontSize: 'clamp(1.15rem, 1.6vw, 1.5rem)' }}>
+                  style={{
+                    fontFamily: fonts.body, fontWeight: 400,
+                    letterSpacing: isRtl ? '0.01em' : '0.03em',
+                    fontSize: 'clamp(1.15rem, 1.6vw, 1.5rem)',
+                    opacity:   firstFrameReady ? 1 : 0,
+                    transform: firstFrameReady ? 'translateY(0)' : 'translateY(14px)',
+                    transition: `opacity 0.7s ease ${0.1 + i * 0.1}s, transform 0.7s cubic-bezier(0.16,1,0.3,1) ${0.1 + i * 0.1}s`,
+                  }}>
                   {item}
                 </a>
               ))}
             </nav>
             <nav className={`flex flex-col gap-4 ${isRtl ? 'text-left' : 'text-right'}`}>
-              {tr.hero.navRight.map(({ label, href }) => (
+              {tr.hero.navRight.map(({ label, href }, i) => (
                 <a key={label} href={href}
                   className="text-white/55 hover:text-white transition-colors duration-300"
-                  style={{ fontFamily: fonts.body, fontWeight: 400, letterSpacing: isRtl ? '0.01em' : '0.03em', fontSize: 'clamp(1.15rem, 1.6vw, 1.5rem)' }}>
+                  style={{
+                    fontFamily: fonts.body, fontWeight: 400,
+                    letterSpacing: isRtl ? '0.01em' : '0.03em',
+                    fontSize: 'clamp(1.15rem, 1.6vw, 1.5rem)',
+                    opacity:   firstFrameReady ? 1 : 0,
+                    transform: firstFrameReady ? 'translateY(0)' : 'translateY(14px)',
+                    transition: `opacity 0.7s ease ${0.15 + i * 0.1}s, transform 0.7s cubic-bezier(0.16,1,0.3,1) ${0.15 + i * 0.1}s`,
+                  }}>
                   {label}
                 </a>
               ))}
@@ -233,13 +239,24 @@ export default function Hero() {
           {/* Bottom bar */}
           <div className="flex items-end justify-between gap-4">
             <h1 className="text-white leading-[1.15] max-w-[88%] md:max-w-[78%]"
-              style={{ fontFamily: fonts.display, fontWeight: isRtl ? 400 : 300, fontSize: 'clamp(2.6rem, 6.5vw, 7rem)' }}>
+              style={{
+                fontFamily: fonts.display, fontWeight: isRtl ? 400 : 300,
+                fontSize: 'clamp(2.6rem, 6.5vw, 7rem)',
+                opacity:   firstFrameReady ? 1 : 0,
+                transform: firstFrameReady ? 'translateY(0)' : 'translateY(28px)',
+                transition: 'opacity 1s ease 0.25s, transform 1s cubic-bezier(0.16,1,0.3,1) 0.25s',
+              }}>
               {tr.hero.tagline.split('\n').map((line, i) => (
                 <span key={i}>{i > 0 && <br />}{line}</span>
               ))}
             </h1>
             <div className={`${isRtl ? 'text-left' : 'text-right'} shrink-0 hidden md:block`}
-              style={{ fontFamily: fonts.body }}>
+              style={{
+                fontFamily: fonts.body,
+                opacity:   firstFrameReady ? 1 : 0,
+                transform: firstFrameReady ? 'translateY(0)' : 'translateY(14px)',
+                transition: 'opacity 0.8s ease 0.4s, transform 0.8s cubic-bezier(0.16,1,0.3,1) 0.4s',
+              }}>
               <p className="text-white/40 tracking-[0.2em] uppercase leading-relaxed"
                 style={{ fontSize: '0.8rem' }}>
                 {tr.hero.location.split('\n').map((line, i) => (
