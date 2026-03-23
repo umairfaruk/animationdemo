@@ -53,6 +53,19 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${bebasNeue.variable} ${cormorant.variable} ${cairo.variable} h-full antialiased`}
     >
+      <head>
+        {/* Preload first 5 frames so the canvas has something to paint before JS runs */}
+        {[0,1,2,3,4].map(i => (
+          <link
+            key={i}
+            rel="preload"
+            as="image"
+            href={`/Frames/SSbg${String(i).padStart(3,'0')}.png`}
+            // @ts-expect-error fetchpriority is valid HTML but not yet in TS types
+            fetchpriority="high"
+          />
+        ))}
+      </head>
       <body className="min-h-full flex flex-col bg-black">
         <script dangerouslySetInnerHTML={{ __html: `history.scrollRestoration='manual';window.scrollTo(0,0);` }} />
         <LoadingProvider>

@@ -119,8 +119,13 @@ export default function Hero() {
       if (done === TOTAL_FRAMES) { clearTimeout(safetyTimer); setLoaded(true) }
     }
 
+    // Load first 60 frames at high priority so the animation starts immediately,
+    // then the rest at low priority so they don't compete with critical resources.
     for (let i = 0; i < TOTAL_FRAMES; i++) {
       const img = new Image()
+      // fetchPriority is a modern DOM property — cast to avoid TS strict errors
+      ;(img as HTMLImageElement & { fetchPriority: string }).fetchPriority =
+        i < 60 ? 'high' : 'low'
       img.src = frameUrl(i)
       img.onload = () => {
         if (canBitmap) createImageBitmap(img).then(b => onFrameDone(i, b)).catch(() => onFrameDone(i, img))
