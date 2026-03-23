@@ -18,8 +18,8 @@ export default function Hero() {
   const { setProgress } = useLoading()
   const canvasRef       = useRef<HTMLCanvasElement>(null)
   const containerRef    = useRef<HTMLDivElement>(null)
-  // Store GPU-decoded ImageBitmaps instead of HTMLImageElements
-  const bitmapsRef      = useRef<(ImageBitmap | null)[]>(Array.from({ length: TOTAL_FRAMES }, () => null))
+  // Store GPU-decoded ImageBitmaps (with HTMLImageElement as fallback for older browsers)
+  const bitmapsRef      = useRef<(ImageBitmap | HTMLImageElement | null)[]>(Array.from({ length: TOTAL_FRAMES }, () => null))
   const ctxRef          = useRef<CanvasRenderingContext2D | null>(null)
 
   const targetFrameRef  = useRef(0)
