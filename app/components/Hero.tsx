@@ -66,13 +66,17 @@ export default function Hero() {
     function onReady() {
       video!.pause()
       scrubReadyRef.current = true
-      setProgress(100)                 // releases intro animation
+      lastProgressRef.current = 100
+      setProgress(100)
       setUiReady(true)
     }
 
-    // Show UI as soon as we know video dimensions (even before fully loaded)
+    // loadedmetadata fires fast (~100ms) — release the intro immediately
+    // don't wait for full buffer (canplaythrough) on large videos
     function onMeta() {
       video!.pause()
+      lastProgressRef.current = 100
+      setProgress(100)
       setUiReady(true)
     }
 
@@ -84,12 +88,13 @@ export default function Hero() {
     if (video.readyState >= 4) { onReady(); }
     else if (video.readyState >= 1) { onMeta(); }
 
-    // Safety net — never block intro longer than 12 s on very slow connections
+    // Safety net — never block intro longer than 5 s on very slow connections
     const safety = setTimeout(() => {
       scrubReadyRef.current = true
+      lastProgressRef.current = 100
       setProgress(100)
       setUiReady(true)
-    }, 12000)
+    }, 5000)
 
     return () => {
       video.removeEventListener('progress',       onProgress)
