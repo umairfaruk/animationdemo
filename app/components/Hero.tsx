@@ -24,7 +24,8 @@ export default function Hero() {
   const coverRef           = useRef<{ sx: number; sy: number; sw: number; sh: number; cw: number; ch: number } | null>(null)
 
   const [uiReady,      setUiReady]      = useState(false)
-  const scrubReadyRef = useRef(false)   // true when fully buffered — used in rAF
+  const scrubReadyRef  = useRef(false)   // true when fully buffered — used in rAF
+  const lastProgressRef = useRef(0)      // prevents onProgress from lowering progress
 
   // ── Canvas setup — half physical resolution for faster GPU blits ──────────
   useEffect(() => {
@@ -54,7 +55,11 @@ export default function Hero() {
       const pct = Math.round(
         (video!.buffered.end(video!.buffered.length - 1) / video!.duration) * 100
       )
-      setProgress(Math.min(99, pct))   // hold at 99 until canplaythrough
+      const next = Math.min(99, pct)
+      if (next > lastProgressRef.current) {
+        lastProgressRef.current = next
+        setProgress(next)
+      }
     }
 
     // canplaythrough = fully buffered — seeking is now instant everywhere
